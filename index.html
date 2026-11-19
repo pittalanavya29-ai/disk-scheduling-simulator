@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Disk Scheduling Algorithm Simulator | OS Trajectory & Benchmark Engine</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              900: '#0c4a6e',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts & Custom Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-[#070a13] text-slate-100 min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
+
+  <!-- Top Navigation & Header Bar -->
+  <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40 px-4 lg:px-8 py-3.5">
+    <div class="max-w-[1700px] mx-auto flex flex-wrap items-center justify-between gap-4">
+      <!-- Title & Branding -->
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-sky-500/20 text-white font-bold text-xl">
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-lg lg:text-xl font-bold tracking-tight text-white">Disk Scheduling Simulator</h1>
+            <span class="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/30">OS Concepts</span>
+            <span class="hidden sm:inline-block px-2 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">Textbook Benchmark</span>
+          </div>
+          <p class="text-xs text-slate-400">Interactive seek trajectory, elevator physics, and multi-algorithm benchmark</p>
+        </div>
+      </div>
+
+      <!-- Header Action Buttons -->
+      <div class="flex items-center space-x-2.5">
+        <!-- Preset Dropdown -->
+        <div class="relative">
+          <select id="presetSelect" class="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer">
+            <option value="" disabled selected>⚡ Load Preset Scenario...</option>
+            <option value="silberschatz">📖 Silberschatz Classic (OS Benchmark)</option>
+            <option value="outer_heavy">⬆ Outer Track Heavy (High Cylinders)</option>
+            <option value="inner_heavy">⬇ Inner Track Heavy (Low Cylinders)</option>
+            <option value="bimodal_extremes">⚡ Bimodal Extremes (Boundary Bounce)</option>
+            <option value="sorted_asc">📈 Pre-Sorted Ascending</option>
+            <option value="sorted_desc">📉 Pre-Sorted Descending</option>
+          </select>
+        </div>
+
+        <!-- Audio Toggle Pill -->
+        <label class="flex items-center space-x-1.5 px-3 py-2 bg-slate-800/80 border border-slate-700/80 rounded-lg text-xs font-medium cursor-pointer hover:bg-slate-700/60 transition-colors" title="Toggle mechanical HDD seek audio clicks">
+          <input type="checkbox" id="audioToggle" class="rounded bg-slate-900 border-slate-700 text-sky-500 focus:ring-0">
+          <span class="text-slate-300">🔊 Sound</span>
+        </label>
+
+        <!-- Theory Modal Button -->
+        <button id="theoryBtn" onclick="document.getElementById('theoryModal').classList.remove('hidden')" class="px-3 py-2 bg-slate-800/80 hover:bg-slate-700 text-xs font-medium rounded-lg border border-slate-700 text-slate-200 transition-colors flex items-center space-x-1.5">
+          <svg class="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+          <span>Theory Guide</span>
+        </button>
+
+        <!-- Export PNG -->
+        <button id="exportPngBtn" class="px-3 py-2 bg-sky-600/90 hover:bg-sky-500 text-xs font-semibold rounded-lg text-white transition-all shadow-md shadow-sky-600/20 flex items-center space-x-1.5">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          <span class="hidden sm:inline">Export PNG</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="max-w-[1700px] mx-auto w-full p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+    
+    <!-- LEFT COLUMN: Control Panel & Inputs (4 cols on lg screens) -->
+    <div class="lg:col-span-4 xl:col-span-4 space-y-5">
+      
+      <!-- Card 1: Algorithm Selector -->
+      <div class="glass-panel rounded-2xl p-4 lg:p-5">
+        <div class="flex items-center justify-between mb-3.5">
+          <h2 class="text-sm font-semibold tracking-wider text-slate-300 uppercase flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+            <span>1. Select Algorithm</span>
+          </h2>
+          <span id="algoRankBadge" class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+            🥇 Optimal (Rank #1)
+          </span>
+        </div>
+
+        <!-- 6 Algorithms Grid + Compare All -->
+        <div class="grid grid-cols-3 gap-2 mb-2.5">
+          <button type="button" data-algo="FCFS" class="px-2.5 py-2 rounded-xl text-xs font-semibold transition-all bg-slate-800/40 border border-slate-700/60 hover:border-sky-500/50 text-slate-300 flex flex-col items-center">
+            <span class="text-sky-400 font-bold">FCFS</span>
+            <span class="text-[10px] text-slate-400 mt-0.5">First-Come</span>
+          </button>
+          <button type="button" data-algo="SSTF" class="px-2.5 py-2 rounded-xl text-xs font-semibold transition-all bg-slate-700/80 border border-slate-700/60 ring-2 ring-sky-400 text-white flex flex-col items-center">
+            <span class="text-emerald-400 font-bold">SSTF</span>
+            <span class="text-[10px] text-slate-400 mt-0.5">Shortest Seek</span>
+          </button>
+          <button type="button" data-algo="SCAN" class="px-2.5 py-2 rounded-xl text-xs font-semibold transition-all bg-slate-800/40 border border-slate-700/60 hover:border-sky-500/50 text-slate-300 flex flex-col items-center">
+            <span class="text-purple-400 font-bold">SCAN</span>
+            <span class="text-[10px] text-slate-400 mt-0.5">Elevator</span>
+          </button>
+          <button type="button" data-algo="C-SCAN" class="px-2.5 py-2 rounded-xl text-xs font-semibold transition-all bg-slate-800/40 border border-slate-700/60 hover:border-sky-500/50 text-slate-300 flex flex-col items-center">
+            <span class="text-rose-400 font-bold">C-SCAN</span>
+            <span class="text-[10px] text-slate-400 mt-0.5">Circular SCAN</span>
+          </button>
+          <button type="button" data-algo="LOOK" class="px-2.5 py-2 rounded-xl text-xs font-semibold transition-all bg-slate-800/40 border border-slate-700/60 hover:border-sky-500/50 text-slate-300 flex flex-col items-center">
+            <span class="text-amber-400 font-bold">LOOK</span>
+            <span class="text-[10px] text-slate-400 mt-0.5">Look Ahead</span>
+          </button>
+          <button type="button" data-algo="C-LOOK" class="px-2.5 py-2 rounded-xl text-xs font-semibold transition-all bg-slate-800/40 border border-slate-700/60 hover:border-sky-500/50 text-slate-300 flex flex-col items-center">
+            <span class="text-teal-400 font-bold">C-LOOK</span>
+            <span class="text-[10px] text-slate-400 mt-0.5">Circular LOOK</span>
+          </button>
+        </div>
+
+        <!-- Compare All Mode Button -->
+        <button type="button" data-algo="COMPARE_ALL" class="w-full py-2 px-3 rounded-xl text-xs font-semibold transition-all bg-gradient-to-r from-slate-800 to-indigo-950/60 border border-indigo-500/40 text-indigo-200 hover:text-white hover:border-indigo-400 flex items-center justify-center space-x-2">
+          <svg class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <span>Overlay & Compare All 6 Algorithms</span>
+        </button>
+      </div>
+
+      <!-- Card 2: Request Queue Configuration -->
+      <div class="glass-panel rounded-2xl p-4 lg:p-5">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-sm font-semibold tracking-wider text-slate-300 uppercase flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+            <span>2. Request Queue Input</span>
+          </h2>
+          <div class="flex items-center space-x-1.5 text-xs">
+            <button id="sortQueueBtn" class="text-slate-400 hover:text-sky-400 transition-colors font-medium">Sort</button>
+            <span class="text-slate-600">|</span>
+            <button id="clearQueueBtn" class="text-slate-400 hover:text-rose-400 transition-colors font-medium">Clear</button>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-400 mb-2">Enter comma-separated cylinder numbers:</p>
+        
+        <input 
+          type="text" 
+          id="requestInput" 
+          value="98, 183, 37, 122, 14, 124, 65, 67" 
+          placeholder="e.g. 98, 183, 37, 122, 14, 124, 65, 67" 
+          class="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm font-mono text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
+        />
+
+        <!-- Inline Validation Alert -->
+        <div id="validationAlert" class="hidden mt-2 p-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs"></div>
+
+        <!-- Rendered Request Badges -->
+        <div class="mt-3">
+          <div class="text-[11px] font-medium text-slate-400 mb-1.5 flex justify-between">
+            <span>Pending Requests in Queue:</span>
+            <span class="text-slate-500 text-[10px]">Click any tag to remove</span>
+          </div>
+          <div id="queueBadges" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1"></div>
+        </div>
+
+        <!-- Quick Randomize Button -->
+        <div class="mt-3.5 pt-3 border-t border-slate-800 flex items-center justify-between">
+          <button type="button" id="randomBtn" class="w-full py-2 px-3 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 hover:border-sky-500/50 transition-all flex items-center justify-center space-x-2">
+            <span>🎲 Randomize Queue (8–12 Cylinders)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Card 3: Disk & Head Parameters -->
+      <div class="glass-panel rounded-2xl p-4 lg:p-5">
+        <h2 class="text-sm font-semibold tracking-wider text-slate-300 uppercase flex items-center space-x-2 mb-4">
+          <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <span>3. Disk & Head Parameters</span>
+        </h2>
+
+        <!-- Initial Head Position Slider & Number -->
+        <div class="mb-4">
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="text-xs font-medium text-slate-300">Initial Head Position:</label>
+            <div class="flex items-center space-x-1">
+              <span class="text-xs text-slate-500">Cyl:</span>
+              <input 
+                type="number" 
+                id="headInput" 
+                value="53" 
+                min="0" 
+                max="199" 
+                class="w-16 bg-slate-950 border border-slate-700 rounded-md px-2 py-0.5 text-xs font-mono text-amber-400 font-bold focus:outline-none focus:ring-1 focus:ring-amber-500"
+              />
+            </div>
+          </div>
+          <input type="range" id="headSlider" min="0" max="199" value="53" class="w-full">
+        </div>
+
+        <!-- Disk Size & Direction Grid -->
+        <div class="grid grid-cols-2 gap-3">
+          <!-- Disk Size -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">Disk Size (Cylinders):</label>
+            <input 
+              type="number" 
+              id="diskSizeInput" 
+              value="200" 
+              min="10" 
+              max="2000" 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+            />
+            <span class="block text-[10px] text-slate-500 mt-1">Range: 0 to Max - 1</span>
+          </div>
+
+          <!-- Initial Direction Toggle -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">Seek Direction:</label>
+            <div class="grid grid-cols-2 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+              <button type="button" id="dirLeftBtn" class="py-1 px-1.5 rounded-lg text-slate-400 hover:text-white transition-all text-center">
+                ← 0 (Left)
+              </button>
+              <button type="button" id="dirRightBtn" class="py-1 px-1.5 rounded-lg bg-sky-600 text-white font-medium shadow-md transition-all text-center">
+                Max (Right) →
+              </button>
+            </div>
+            <span class="block text-[10px] text-slate-500 mt-1">For SCAN & LOOK</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4: Playback & Animation Controls -->
+      <div class="glass-panel rounded-2xl p-4 lg:p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold tracking-wider text-slate-300 uppercase flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span>4. Playback Controller</span>
+          </h2>
+          <span id="stepCounterText" class="text-xs font-mono text-slate-400">Step 0 of 8</span>
+        </div>
+
+        <!-- Step Scrubber Slider -->
+        <div class="mb-3.5">
+          <input type="range" id="stepScrubber" min="0" max="8" value="0" class="w-full">
+        </div>
+
+        <!-- Control Buttons Toolbar -->
+        <div class="grid grid-cols-4 gap-2 mb-4">
+          <button type="button" id="resetBtn" class="py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center justify-center" title="Reset to Step 0 (Home/R)">
+            ⏮ Reset
+          </button>
+          <button type="button" id="stepBackBtn" class="py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center justify-center" title="Step Backward (Left Arrow)">
+            ⏪ Back
+          </button>
+          <button type="button" id="playPauseBtn" class="py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center space-x-1" title="Play / Pause (Spacebar)">
+            <span id="playPauseIcon">&#9654;</span>
+            <span id="playPauseText">Play</span>
+          </button>
+          <button type="button" id="stepFwdBtn" class="py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center justify-center" title="Step Forward (Right Arrow)">
+            Forward ⏩
+          </button>
+        </div>
+
+        <!-- Speed Slider -->
+        <div class="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-800">
+          <span>Speed:</span>
+          <div class="flex items-center space-x-3 w-44">
+            <input type="range" id="speedSlider" min="0.5" max="3.0" step="0.25" value="1.0" class="w-full">
+            <span id="speedLabel" class="font-mono text-sky-400 font-semibold w-8 text-right">1.0x</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN: Visualizer, Metrics & Comparison (8 cols on lg screens) -->
+    <div class="lg:col-span-8 xl:col-span-8 space-y-5">
+      
+      <!-- Metrics Dashboard (4 Cards) -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <!-- Metric 1: Total Head Movement -->
+        <div class="glass-panel rounded-2xl p-3.5 border-l-4 border-l-sky-500">
+          <div class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total Head Movement</div>
+          <div class="mt-1 flex items-baseline space-x-1.5">
+            <span id="metricTotalMove" class="text-2xl font-bold font-mono text-white tracking-tight">236</span>
+            <span class="text-xs text-slate-400">cylinders</span>
+          </div>
+          <div class="mt-1 text-[10px] text-slate-500">Lower is more optimal</div>
+        </div>
+
+        <!-- Metric 2: Average Seek Distance -->
+        <div class="glass-panel rounded-2xl p-3.5 border-l-4 border-l-emerald-500">
+          <div class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Average Seek Distance</div>
+          <div class="mt-1 flex items-baseline space-x-1.5">
+            <span id="metricAvgSeek" class="text-2xl font-bold font-mono text-emerald-400 tracking-tight">29.5</span>
+            <span class="text-xs text-slate-400">cyl/req</span>
+          </div>
+          <div class="mt-1 text-[10px] text-slate-500">Total Movement / Requests</div>
+        </div>
+
+        <!-- Metric 3: Total Seek Steps -->
+        <div class="glass-panel rounded-2xl p-3.5 border-l-4 border-l-purple-500">
+          <div class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Seek Steps Count</div>
+          <div class="mt-1 flex items-baseline space-x-1.5">
+            <span id="metricTotalSteps" class="text-2xl font-bold font-mono text-purple-400 tracking-tight">8</span>
+            <span class="text-xs text-slate-400">traversals</span>
+          </div>
+          <div class="mt-1 text-[10px] text-slate-500">Inc. boundary & jumps</div>
+        </div>
+
+        <!-- Metric 4: Live Head Cylinder -->
+        <div class="glass-panel rounded-2xl p-3.5 border-l-4 border-l-amber-500">
+          <div class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Current Head Track</div>
+          <div class="mt-1 flex items-baseline space-x-1.5">
+            <span id="metricCurrentCyl" class="text-2xl font-bold font-mono text-amber-400 tracking-tight">53</span>
+            <span class="text-xs text-slate-400">active</span>
+          </div>
+          <div class="mt-1 text-[10px] text-slate-500">Live head marker</div>
+        </div>
+      </div>
+
+      <!-- Main Visualization Panel -->
+      <div class="glass-panel rounded-2xl p-4 lg:p-5">
+        <!-- Visualizer Header & View Mode Switcher -->
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3.5 pb-3 border-b border-slate-800">
+          <div class="flex items-center space-x-2">
+            <span id="algoBadge" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40">
+              SSTF
+            </span>
+            <span class="text-xs text-slate-400 font-medium">Seek Trajectory & Physics Visualizer</span>
+          </div>
+
+          <!-- View Mode Tabs -->
+          <div class="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+            <button type="button" id="viewChartBtn" class="px-3 py-1 rounded-lg bg-sky-600 text-white font-medium transition-all">
+              📈 Seek Graph
+            </button>
+            <button type="button" id="viewPlatterBtn" class="px-3 py-1 rounded-lg text-slate-400 hover:text-white transition-all">
+              💿 Disk Platter
+            </button>
+            <button type="button" id="viewSplitBtn" class="px-3 py-1 rounded-lg text-slate-400 hover:text-white transition-all">
+              ◫ Split View
+            </button>
+          </div>
+        </div>
+
+        <!-- Visualizer Canvases Area -->
+        <div class="flex flex-col lg:flex-row gap-4">
+          <!-- Canvas 1: Seek Graph (Time vs Cylinder) -->
+          <div id="chartContainer" class="w-full canvas-wrapper relative">
+            <canvas id="seekCanvas"></canvas>
+          </div>
+
+          <!-- Canvas 2: Rotating Mechanical Disk Platter & Actuator Arm -->
+          <div id="platterContainer" class="hidden canvas-wrapper relative">
+            <canvas id="platterCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Live Step Explanation Box -->
+        <div class="mt-4 p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 flex items-start space-x-3">
+          <div class="mt-0.5 text-sky-400">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div id="stepExplanation" class="text-xs text-slate-300 leading-relaxed font-sans">
+            Ready to simulate. Head is positioned at cylinder 53.
+          </div>
+        </div>
+
+        <!-- Step Sequence Ribbon (Clickable stepper) -->
+        <div class="mt-3">
+          <div class="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+            <span>Sequential Seek Steps (Click to inspect):</span>
+            <span class="text-slate-500 font-mono text-[10px]">Δ = seek distance</span>
+          </div>
+          <div id="stepSequenceContainer" class="flex items-center space-x-2 overflow-x-auto pb-2 pr-2"></div>
+        </div>
+      </div>
+
+      <!-- Comparison Benchmark Table -->
+      <div class="glass-panel rounded-2xl p-4 lg:p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="text-sm font-semibold tracking-wider text-slate-200 uppercase flex items-center space-x-2">
+              <svg class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Algorithm Comparison & Efficiency Ranking</span>
+            </h2>
+            <p class="text-xs text-slate-400">Live evaluation of all 6 algorithms on current queue & head position</p>
+          </div>
+          <button id="copyMarkdownBtn" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors flex items-center space-x-1">
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+            </svg>
+            <span>Copy Markdown</span>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400 uppercase font-medium">
+                <th class="py-2.5 px-3">Rank</th>
+                <th class="py-2.5 px-3">Algorithm</th>
+                <th class="py-2.5 px-3">Total Movement</th>
+                <th class="py-2.5 px-3">Servicing Seek</th>
+                <th class="py-2.5 px-3">Avg Seek / Req</th>
+                <th class="py-2.5 px-3">Diff vs Best</th>
+                <th class="py-2.5 px-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="comparisonTableBody">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Educational Theory Reference Modal -->
+  <div id="theoryModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto shadow-2xl p-6">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-bold text-white flex items-center space-x-2">
+          <span>📚 Disk Scheduling Algorithms Theory Guide</span>
+        </h3>
+        <button onclick="document.getElementById('theoryModal').classList.add('hidden')" class="text-slate-400 hover:text-white text-lg font-bold p-1">
+          &times;
+        </button>
+      </div>
+
+      <div class="mt-4 space-y-4 text-xs text-slate-300 leading-relaxed">
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+          <h4 class="font-bold text-sky-400 text-sm mb-1">1. FCFS (First-Come, First-Served)</h4>
+          <p>Services requests in the exact sequential order they arrive in the I/O queue. Completely fair with zero starvation risk, but suffers from severe head wild oscillations across cylinders, leading to high seek times.</p>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+          <h4 class="font-bold text-emerald-400 text-sm mb-1">2. SSTF (Shortest Seek Time First)</h4>
+          <p>Greedy selection: always selects the pending request closest to the current head position. Dramatically reduces total head movement compared to FCFS, but introduces a risk of <strong>starvation</strong> for distant requests under heavy loads.</p>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+          <h4 class="font-bold text-purple-400 text-sm mb-1">3. SCAN (The Elevator Algorithm)</h4>
+          <p>The disk arm sweeps in one direction, servicing all pending requests along the way until it touches the disk boundary (cylinder 0 or Disk Size - 1). It then reverses direction and sweeps back. Eliminates starvation and provides bounded wait times.</p>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+          <h4 class="font-bold text-rose-400 text-sm mb-1">4. C-SCAN (Circular SCAN)</h4>
+          <p>Provides a more uniform waiting time than SCAN. The arm sweeps in one direction to the boundary, then immediately performs a rapid circular return jump to the opposite boundary <em>without</em> servicing requests on the return trip. Treats cylinders as a circular ring.</p>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+          <h4 class="font-bold text-amber-400 text-sm mb-1">5. LOOK</h4>
+          <p>A smart optimization of SCAN. The arm looks ahead in the current direction and only travels as far as the <strong>furthest pending request</strong> in that direction. When no further requests exist ahead, it reverses immediately without travelling to the 0 or Max-1 boundary.</p>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+          <h4 class="font-bold text-teal-400 text-sm mb-1">6. C-LOOK (Circular LOOK)</h4>
+          <p>An optimization of C-SCAN. Moves only as far as the furthest request in the forward direction, then jumps directly to the furthest request at the opposite extreme without travelling all the way to cylinder boundaries.</p>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-3 border-t border-slate-800 flex justify-end">
+        <button onclick="document.getElementById('theoryModal').classList.add('hidden')" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs transition-colors">
+          Got It, Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Pill -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transition-all duration-300 opacity-0 pointer-events-none transform translate-y-2">
+    <div class="bg-slate-900 border border-sky-500/40 shadow-xl rounded-xl px-4 py-2.5 text-xs font-medium text-sky-200 flex items-center space-x-2">
+      <span class="w-2 h-2 rounded-full bg-sky-400 animate-ping"></span>
+      <span id="toastMsg">Notification message</span>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/sound.js"></script>
+  <script src="js/algorithms.js"></script>
+  <script src="js/visualizer.js"></script>
+  <script src="js/platter.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
